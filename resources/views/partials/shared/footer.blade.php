@@ -1,0 +1,1 @@
+<footer class="footer @isset($admin) admin-footer @endisset">ITBRP Network Monitoring • Dikembangkan oleh Dian Afriandi • Institut Teknologi dan Bisnis Riau Pesisir • 2026</footer>
