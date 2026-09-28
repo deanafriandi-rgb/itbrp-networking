@@ -293,4 +293,7 @@ Route::prefix('admin')
             '/profile',
             [ProfileController::class, 'index']
         )->name('profile');
+Route::get('/admin-test', function () {
+    return 'ADMIN TEST OK';
+});
     });

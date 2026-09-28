@@ -29,4 +29,11 @@ Schedule::command('mikrotik:devices-sync')
 Schedule::command('squid:import')
     ->everyMinute()
     ->withoutOverlapping();
-
+Schedule::call(function () {
+    app(
+        \App\Services\DashboardQueryService::class
+    )->getDashboardData();
+})
+    ->name('dashboard:warm-cache')
+    ->everyMinute()
+    ->withoutOverlapping();

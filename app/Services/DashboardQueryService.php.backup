@@ -1,0 +1,436 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AccessLog;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+
+class DashboardQueryService
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Cache dashboard
+    |--------------------------------------------------------------------------
+    |
+    | Statistik jaringan cukup diperbarui setiap 5 menit.
+    | Squid tetap merekam data terus menerus.
+    |
+    */
+
+    private const CACHE_MINUTES = 5;
+
+    public function getDashboardData(
+        ?Carbon $from = null,
+        ?Carbon $to = null
+    ): array {
+        $to ??= now();
+        $from ??= $to->copy()->subHours(24);
+
+        return [
+            'period' => [
+                'from' => $from,
+                'to' => $to,
+            ],
+
+            'summary' => $this->summary($from, $to),
+
+            'traffic' => $this->trafficPerHour($from, $to),
+
+            'topDomains' => $this->topDomains($from, $to),
+
+            'topClients' => $this->topClients($from, $to),
+
+            'latestActivities' => $this->latestActivities($from, $to),
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Summary
+    |--------------------------------------------------------------------------
+    |
+    | Sebelumnya dashboard menjalankan banyak COUNT/SUM terpisah.
+    | Sekarang seluruh card dihitung DALAM SATU QUERY.
+    |
+    */
+
+    public function summary(
+        Carbon $from,
+        Carbon $to
+    ): array {
+        return Cache::remember(
+            $this->cacheKey('summary', $from, $to),
+            now()->addMinutes(self::CACHE_MINUTES),
+            function () use ($from, $to) {
+                $row = AccessLog::query()
+                    ->whereBetween('logged_at', [$from, $to])
+                    ->selectRaw(
+                        "
+                        COUNT(*) AS total_request,
+
+                        COALESCE(
+                            SUM(
+                                CASE
+                                    WHEN category IN (?, ?, ?)
+                                    THEN 1
+                                    ELSE 0
+                                END
+                            ),
+                            0
+                        ) AS allowed,
+
+                        COALESCE(
+                            SUM(
+                                CASE
+                                    WHEN category = ?
+                                    THEN 1
+                                    ELSE 0
+                                END
+                            ),
+                            0
+                        ) AS blocked,
+
+                        COALESCE(
+                            SUM(
+                                CASE
+                                    WHEN category = ?
+                                    THEN 1
+                                    ELSE 0
+                                END
+                            ),
+                            0
+                        ) AS failed,
+
+                        COUNT(DISTINCT client_ip) AS unique_clients,
+
+                        COALESCE(
+                            SUM(
+                                CASE
+                                    WHEN category = ?
+                                    THEN 1
+                                    ELSE 0
+                                END
+                            ),
+                            0
+                        ) AS cache_hit,
+
+                        COALESCE(
+                            SUM(
+                                CASE
+                                    WHEN category = ?
+                                    THEN 1
+                                    ELSE 0
+                                END
+                            ),
+                            0
+                        ) AS cache_miss,
+
+                        COALESCE(SUM(bytes), 0) AS total_bytes
+                        ",
+                        [
+                            AccessLog::CATEGORY_ALLOWED,
+                            AccessLog::CATEGORY_CACHE_HIT,
+                            AccessLog::CATEGORY_CACHE_MISS,
+
+                            AccessLog::CATEGORY_BLOCKED,
+                            AccessLog::CATEGORY_FAILED,
+
+                            AccessLog::CATEGORY_CACHE_HIT,
+                            AccessLog::CATEGORY_CACHE_MISS,
+                        ]
+                    )
+                    ->first();
+
+                $cacheHit = (int) ($row->cache_hit ?? 0);
+                $cacheMiss = (int) ($row->cache_miss ?? 0);
+
+                $cacheTotal = $cacheHit + $cacheMiss;
+
+                $hitRatio = $cacheTotal > 0
+                    ? ($cacheHit / $cacheTotal) * 100
+                    : 0;
+
+                return [
+                    'total_request' => (int) ($row->total_request ?? 0),
+
+                    'allowed' => (int) ($row->allowed ?? 0),
+
+                    'blocked' => (int) ($row->blocked ?? 0),
+
+                    'failed' => (int) ($row->failed ?? 0),
+
+                    'unique_clients' => (int) ($row->unique_clients ?? 0),
+
+                    'cache_hit' => $cacheHit,
+
+                    'cache_miss' => $cacheMiss,
+
+                    'hit_ratio' => round($hitRatio, 2),
+
+                    'total_bytes' => (int) ($row->total_bytes ?? 0),
+                ];
+            }
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Traffic per jam
+    |--------------------------------------------------------------------------
+    */
+
+    public function trafficPerHour(
+        Carbon $from,
+        Carbon $to
+    ): Collection {
+        return Cache::remember(
+            $this->cacheKey('traffic', $from, $to),
+            now()->addMinutes(self::CACHE_MINUTES),
+            function () use ($from, $to) {
+                $rows = AccessLog::query()
+                    ->selectRaw("
+                        DATE_FORMAT(logged_at, '%Y-%m-%d %H:00:00') AS hour,
+
+                        COUNT(*) AS total_request,
+
+                        SUM(
+                            CASE
+                                WHEN category IN (
+                                    'ALLOWED',
+                                    'CACHE_HIT',
+                                    'CACHE_MISS'
+                                )
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS allowed,
+
+                        SUM(
+                            CASE
+                                WHEN category = 'BLOCKED'
+                                THEN 1
+                                ELSE 0
+                            END
+                        ) AS blocked
+                    ")
+                    ->whereBetween('logged_at', [$from, $to])
+                    ->groupByRaw(
+                        "DATE_FORMAT(logged_at, '%Y-%m-%d %H:00:00')"
+                    )
+                    ->orderByRaw(
+                        "DATE_FORMAT(logged_at, '%Y-%m-%d %H:00:00')"
+                    )
+                    ->get()
+                    ->keyBy('hour');
+
+                $result = collect();
+
+                $cursor = $from
+                    ->copy()
+                    ->startOfHour();
+
+                $end = $to
+                    ->copy()
+                    ->startOfHour();
+
+                while ($cursor <= $end) {
+                    $key = $cursor->format('Y-m-d H:00:00');
+
+                    $row = $rows->get($key);
+
+                    $result->push([
+                        'hour' => $cursor->format('H:00'),
+
+                        'total_request' => $row
+                            ? (int) $row->total_request
+                            : 0,
+
+                        'allowed' => $row
+                            ? (int) $row->allowed
+                            : 0,
+
+                        'blocked' => $row
+                            ? (int) $row->blocked
+                            : 0,
+                    ]);
+
+                    $cursor->addHour();
+                }
+
+                return $result;
+            }
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Top Domain
+    |--------------------------------------------------------------------------
+    */
+
+    public function topDomains(
+        Carbon $from,
+        Carbon $to,
+        int $limit = 10
+    ): Collection {
+        return Cache::remember(
+            $this->cacheKey(
+                'top-domains-'.$limit,
+                $from,
+                $to
+            ),
+            now()->addMinutes(self::CACHE_MINUTES),
+            function () use ($from, $to, $limit) {
+                return AccessLog::query()
+                    ->selectRaw('
+                        domain,
+                        COUNT(*) AS total_request,
+                        COALESCE(SUM(bytes), 0) AS total_bytes
+                    ')
+                    ->whereBetween('logged_at', [$from, $to])
+                    ->whereNotNull('domain')
+                    ->where('domain', '!=', '')
+                    ->groupBy('domain')
+                    ->orderByDesc('total_request')
+                    ->limit($limit)
+                    ->get()
+                    ->map(function ($row) {
+                        return [
+                            'domain' => $row->domain,
+
+                            'total_request' =>
+                                (int) $row->total_request,
+
+                            'total_bytes' =>
+                                (int) $row->total_bytes,
+                        ];
+                    });
+            }
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Top Client
+    |--------------------------------------------------------------------------
+    */
+
+    public function topClients(
+        Carbon $from,
+        Carbon $to,
+        int $limit = 10
+    ): Collection {
+        return Cache::remember(
+            $this->cacheKey(
+                'top-clients-'.$limit,
+                $from,
+                $to
+            ),
+            now()->addMinutes(self::CACHE_MINUTES),
+            function () use ($from, $to, $limit) {
+                return AccessLog::query()
+                    ->selectRaw('
+                        client_ip,
+                        COUNT(*) AS total_request,
+                        COALESCE(SUM(bytes), 0) AS total_bytes,
+                        MAX(logged_at) AS last_seen
+                    ')
+                    ->whereBetween('logged_at', [$from, $to])
+                    ->whereNotNull('client_ip')
+                    ->groupBy('client_ip')
+                    ->orderByDesc('total_request')
+                    ->limit($limit)
+                    ->get()
+                    ->map(function ($row) {
+                        return [
+                            'client_ip' =>
+                                $row->client_ip,
+
+                            'total_request' =>
+                                (int) $row->total_request,
+
+                            'total_bytes' =>
+                                (int) $row->total_bytes,
+
+                            'last_seen' =>
+                                $row->last_seen,
+                        ];
+                    });
+            }
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Aktivitas terbaru
+    |--------------------------------------------------------------------------
+    */
+
+    public function latestActivities(
+        Carbon $from,
+        Carbon $to,
+        int $limit = 10
+    ): Collection {
+        return Cache::remember(
+            $this->cacheKey(
+                'latest-'.$limit,
+                $from,
+                $to
+            ),
+            now()->addMinutes(1),
+            function () use ($from, $to, $limit) {
+                return AccessLog::query()
+                    ->whereBetween('logged_at', [$from, $to])
+                    ->orderByDesc('logged_at')
+                    ->limit($limit)
+                    ->get([
+                        'id',
+                        'logged_at',
+                        'client_ip',
+                        'domain',
+                        'method',
+                        'protocol',
+                        'squid_code',
+                        'http_code',
+                        'bytes',
+                        'elapsed_ms',
+                        'category',
+                    ]);
+            }
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache key
+    |--------------------------------------------------------------------------
+    |
+    | Dibulatkan per 5 menit agar key tidak berubah tiap detik.
+    |
+    */
+
+    private function cacheKey(
+        string $name,
+        Carbon $from,
+        Carbon $to
+    ): string {
+        $fromBucket = intdiv(
+            $from->timestamp,
+            self::CACHE_MINUTES * 60
+        );
+
+        $toBucket = intdiv(
+            $to->timestamp,
+            self::CACHE_MINUTES * 60
+        );
+
+        return sprintf(
+            'dashboard:%s:%s:%s',
+            $name,
+            $fromBucket,
+            $toBucket
+        );
+    }
+}

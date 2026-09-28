@@ -35,8 +35,8 @@ class DashboardQueryService
     | SUMMARY
     |--------------------------------------------------------------------------
     |
-    | Cache 2 menit.
-    | Import Squid tetap 1 menit.
+    | Query dipisah agar index category+logged_at dan logged_at
+    | bisa dimanfaatkan MySQL.
     |
     */
     public function summary(
@@ -44,8 +44,8 @@ class DashboardQueryService
         Carbon $to
     ): array {
         return Cache::remember(
-            $this->cacheKey('summary'),
-            now()->addMinutes(2),
+            $this->cacheKey('summary', $from, $to),
+            now()->addSeconds(15),
             function () use ($from, $to) {
 
                 $totalRequest = AccessLog::query()
@@ -114,6 +114,9 @@ class DashboardQueryService
                     'cache_hit' => (int) $cacheHit,
                     'cache_miss' => (int) $cacheMiss,
                     'hit_ratio' => round($hitRatio, 2),
+
+                    // Tidak dihitung di dashboard utama
+                    // supaya tidak scan kolom bytes ratusan ribu row.
                     'total_bytes' => 0,
                 ];
             }
@@ -122,19 +125,16 @@ class DashboardQueryService
 
     /*
     |--------------------------------------------------------------------------
-    | TRAFFIC 24 JAM
+    | TRAFFIC PER JAM
     |--------------------------------------------------------------------------
-    |
-    | CACHE MENYIMPAN ARRAY, BUKAN COLLECTION.
-    |
     */
     public function trafficPerHour(
         Carbon $from,
         Carbon $to
     ): Collection {
-        $data = Cache::remember(
-            $this->cacheKey('traffic'),
-            now()->addMinutes(2),
+        return Cache::remember(
+            $this->cacheKey('traffic', $from, $to),
+            now()->addSeconds(60),
             function () use ($from, $to) {
 
                 $rows = AccessLog::query()
@@ -182,7 +182,7 @@ class DashboardQueryService
                     ->get()
                     ->keyBy('hour');
 
-                $result = [];
+                $result = collect();
 
                 $cursor = $from->copy()->startOfHour();
                 $end = $to->copy()->startOfHour();
@@ -194,7 +194,7 @@ class DashboardQueryService
 
                     $row = $rows->get($key);
 
-                    $result[] = [
+                    $result->push([
                         'hour' =>
                             $cursor->format('H:00'),
 
@@ -212,7 +212,7 @@ class DashboardQueryService
                             $row
                                 ? (int) $row->blocked
                                 : 0,
-                    ];
+                    ]);
 
                     $cursor->addHour();
                 }
@@ -220,25 +220,28 @@ class DashboardQueryService
                 return $result;
             }
         );
-
-        return collect($data);
     }
 
     /*
     |--------------------------------------------------------------------------
     | TOP DOMAIN
     |--------------------------------------------------------------------------
+    |
+    | total_bytes sengaja tidak dihitung di dashboard utama.
+    |
     */
     public function topDomains(
         Carbon $from,
         Carbon $to,
         int $limit = 10
     ): Collection {
-        $data = Cache::remember(
+        return Cache::remember(
             $this->cacheKey(
-                'top-domains-'.$limit
+                'top-domains-'.$limit,
+                $from,
+                $to
             ),
-            now()->addMinutes(3),
+            now()->addSeconds(60),
             function () use ($from, $to, $limit) {
 
                 return AccessLog::query()
@@ -266,13 +269,9 @@ class DashboardQueryService
 
                             'total_bytes' => 0,
                         ];
-                    })
-                    ->values()
-                    ->all();
+                    });
             }
         );
-
-        return collect($data);
     }
 
     /*
@@ -285,11 +284,13 @@ class DashboardQueryService
         Carbon $to,
         int $limit = 10
     ): Collection {
-        $data = Cache::remember(
+        return Cache::remember(
             $this->cacheKey(
-                'top-clients-'.$limit
+                'top-clients-'.$limit,
+                $from,
+                $to
             ),
-            now()->addMinutes(3),
+            now()->addSeconds(60),
             function () use ($from, $to, $limit) {
 
                 return AccessLog::query()
@@ -320,13 +321,9 @@ class DashboardQueryService
                             'last_seen' =>
                                 $row->last_seen,
                         ];
-                    })
-                    ->values()
-                    ->all();
+                    });
             }
         );
-
-        return collect($data);
     }
 
     /*
@@ -334,9 +331,7 @@ class DashboardQueryService
     | AKTIVITAS TERBARU
     |--------------------------------------------------------------------------
     |
-    | TIDAK DICACHE.
-    | Query hanya 10 row terbaru.
-    | Ini bagian live/realtime dashboard.
+    | Hanya 10 row sehingga tetap ringan dan hampir real-time.
     |
     */
     public function latestActivities(
@@ -344,42 +339,59 @@ class DashboardQueryService
         Carbon $to,
         int $limit = 10
     ): Collection {
-        return AccessLog::query()
-            ->whereBetween(
-                'logged_at',
-                [$from, $to]
-            )
-            ->orderByDesc('logged_at')
-            ->orderByDesc('id')
-            ->limit($limit)
-            ->get([
-                'id',
-                'logged_at',
-                'client_ip',
-                'domain',
-                'method',
-                'protocol',
-                'squid_code',
-                'http_code',
-                'bytes',
-                'elapsed_ms',
-                'category',
-            ]);
+        return Cache::remember(
+            $this->cacheKey(
+                'latest-'.$limit,
+                $from,
+                $to
+            ),
+            now()->addSeconds(2),
+            function () use ($from, $to, $limit) {
+
+                return AccessLog::query()
+                    ->whereBetween(
+                        'logged_at',
+                        [$from, $to]
+                    )
+                    ->orderByDesc('logged_at')
+                    ->orderByDesc('id')
+                    ->limit($limit)
+                    ->get([
+                        'id',
+                        'logged_at',
+                        'client_ip',
+                        'domain',
+                        'method',
+                        'protocol',
+                        'squid_code',
+                        'http_code',
+                        'bytes',
+                        'elapsed_ms',
+                        'category',
+                    ]);
+            }
+        );
     }
 
     /*
     |--------------------------------------------------------------------------
     | CACHE KEY
     |--------------------------------------------------------------------------
-    |
-    | Key dibuat stabil.
-    | Jangan memasukkan current time ke key,
-    | karena itu membuat cache tidak pernah benar-benar terpakai.
-    |
     */
     private function cacheKey(
-        string $name
+        string $name,
+        Carbon $from,
+        Carbon $to
     ): string {
-        return 'dashboard:v4:' . $name;
+        return sprintf(
+            'dashboard:%s:%s:%s',
+            $name,
+            $from->copy()
+                ->startOfMinute()
+                ->format('YmdHi'),
+            $to->copy()
+                ->startOfMinute()
+                ->format('YmdHi')
+        );
     }
 }
