@@ -1,1475 +1,1088 @@
 @extends('layouts.admin')
 
-
 @section('title', 'Beranda')
-
 
 @section('content')
 
+    @php
 
-@php
+        /*
 
-/*
+        |--------------------------------------------------------------------------
 
-|--------------------------------------------------------------------------
+        | Dashboard Summary
 
-| Dashboard Summary
+        |--------------------------------------------------------------------------
 
-|--------------------------------------------------------------------------
+        */
 
-*/
+        $totalRequest = (int) ($summary['total_request'] ?? 0);
 
+        $allowed = (int) ($summary['allowed'] ?? 0);
 
-$totalRequest = (int) ($summary['total_request'] ?? 0);
+        $blocked = (int) ($summary['blocked'] ?? 0);
 
-$allowed = (int) ($summary['allowed'] ?? 0);
+        $failed = (int) ($summary['failed'] ?? 0);
 
-$blocked = (int) ($summary['blocked'] ?? 0);
+        $uniqueClients = (int) ($summary['unique_clients'] ?? 0);
 
-$failed = (int) ($summary['failed'] ?? 0);
+        $cacheHit = (int) ($summary['cache_hit'] ?? 0);
 
-$uniqueClients = (int) ($summary['unique_clients'] ?? 0);
+        $cacheMiss = (int) ($summary['cache_miss'] ?? 0);
 
+        $hitRatio = (float) ($summary['hit_ratio'] ?? 0);
 
-$cacheHit = (int) ($summary['cache_hit'] ?? 0);
+        $totalBytes = (int) ($summary['total_bytes'] ?? 0);
 
-$cacheMiss = (int) ($summary['cache_miss'] ?? 0);
+        /*
 
-$hitRatio = (float) ($summary['hit_ratio'] ?? 0);
+        |--------------------------------------------------------------------------
 
+        | Waktu
 
-$totalBytes = (int) ($summary['total_bytes'] ?? 0);
+        |--------------------------------------------------------------------------
 
+        */
 
-/*
+        $now = now('Asia/Jakarta');
 
-|--------------------------------------------------------------------------
+        /*
 
-| Waktu
+        |--------------------------------------------------------------------------
 
-|--------------------------------------------------------------------------
+        | Top Domain
 
-*/
+        |--------------------------------------------------------------------------
 
+        */
 
-$now = now('Asia/Jakarta');
+        $maxDomainRequest = max(
 
+            1,
 
-/*
+            (int) ($topDomains->max('total_request') ?? 0)
 
-|--------------------------------------------------------------------------
+        );
 
-| Top Domain
+        /*
 
-|--------------------------------------------------------------------------
+        |--------------------------------------------------------------------------
 
-*/
+        | Traffic untuk JavaScript
 
+        |--------------------------------------------------------------------------
 
-$maxDomainRequest = max(
-1,
-(int) ($topDomains->max('total_request') ?? 0)
-);
+        */
 
-/*
-|--------------------------------------------------------------------------
-| Traffic untuk JavaScript
-|--------------------------------------------------------------------------
-*/
+        $trafficData = collect($traffic ?? [])
 
-$trafficData = collect($traffic ?? [])
-->values()
-->all();
+            ->values()
 
-@endphp
+            ->all();
 
+    @endphp
 
-{{-- ========================================================= --}}
+    {{-- ========================================================= --}}
 
-{{-- HERO --}}
+    {{-- HERO --}}
 
-{{-- ========================================================= --}}
+    {{-- ========================================================= --}}
 
+    <section class="hero">
 
-<section class="hero">
+        <div class="hero-bg"></div>
 
+        <div class="hero-copy">
 
-    <div class="hero-bg"></div>
+            <div class="eyebrow">
 
-
-    <div class="hero-copy">
-
-
-        <div class="eyebrow">
-
-            ITBRP NETWORK MONITORING
-
-        </div>
-
-
-        <h1>
-
-            Selamat Datang, Admin 👋
-
-        </h1>
-
-
-        <p>
-
-            Pantau dan kelola aktivitas jaringan kampus secara real-time,
-
-            aman, dan terpercaya.
-
-        </p>
-
-
-        <div class="hero-chips">
-
-
-            <span class="hero-chip">
-
-                <span class="chip-icon green">●</span>
-
-                Jaringan Stabil
-
-            </span>
-
-
-            <span class="hero-chip">
-
-                <span class="chip-icon">◆</span>
-
-                Akses Terkendali
-
-            </span>
-
-
-            <span class="hero-chip">
-
-                <span class="chip-icon purple">▥</span>
-
-                Monitoring Real-time
-
-            </span>
-
-
-        </div>
-
-
-    </div>
-
-
-    <div class="hero-status">
-
-        <span class="status-dot"></span>
-
-        Sistem Monitoring Aktif
-
-    </div>
-
-
-    <div class="hero-clock">
-
-
-        <small>
-
-            {{ $now->translatedFormat('l, d F Y') }}
-
-        </small>
-
-
-        <b>
-
-            {{ $now->format('H:i') }}
-
-        </b>
-
-
-        <span>
-
-            WIB
-
-        </span>
-
-
-    </div>
-
-
-</section>
-
-
-{{-- ========================================================= --}}
-
-{{-- SUMMARY CARDS --}}
-
-{{-- ========================================================= --}}
-
-
-<div class="stats">
-
-
-    {{-- TOTAL REQUEST --}}
-
-    <div class="stat-card blue">
-
-
-        <div class="stat-top">
-
-
-            <div class="stat-icon">
-
-                ▧
+                ITBRP NETWORK MONITORING
 
             </div>
 
+            <h1>
 
-            <div>
+                Dashboard Monitoring Jaringan ITBRP
 
+            </h1>
 
-                <div class="stat-label">
+            <p>
 
-                    Total Request
+                Pemantauan aktivitas, akses, perangkat, dan performa jaringan kampus
 
-                </div>
+                secara terpusat dan real-time.
 
+            </p>
 
-                <div class="stat-value">
+            <div class="hero-chips">
 
-                    {{ number_format($totalRequest, 0, ',', '.') }}
+                <span class="hero-chip">
 
-                </div>
+                    <span class="chip-icon green">●</span>
 
-
-            </div>
-
-
-        </div>
-
-
-        <div class="stat-foot">
-
-
-            <span class="up">
-
-                ●
-
-            </span>
-
-
-            24 jam terakhir
-
-
-        </div>
-
-
-    </div>
-
-
-    {{-- ALLOWED --}}
-
-    <div class="stat-card green">
-
-
-        <div class="stat-top">
-
-
-            <div class="stat-icon">
-
-                ✓
-
-            </div>
-
-
-            <div>
-
-
-                <div class="stat-label">
-
-                    Allowed
-
-                </div>
-
-
-                <div class="stat-value">
-
-                    {{ number_format($allowed, 0, ',', '.') }}
-
-                </div>
-
-
-            </div>
-
-
-        </div>
-
-
-        <div class="stat-foot">
-
-
-            <span class="up">
-
-                ●
-
-            </span>
-
-
-            Request diizinkan
-
-
-        </div>
-
-
-    </div>
-
-
-    {{-- BLOCKED --}}
-
-    <div class="stat-card red">
-
-
-        <div class="stat-top">
-
-
-            <div class="stat-icon">
-
-                ⊘
-
-            </div>
-
-
-            <div>
-
-
-                <div class="stat-label">
-
-                    Blocked
-
-                </div>
-
-
-                <div class="stat-value">
-
-                    {{ number_format($blocked, 0, ',', '.') }}
-
-                </div>
-
-
-            </div>
-
-
-        </div>
-
-
-        <div class="stat-foot">
-
-
-            <span class="down">
-
-                ●
-
-            </span>
-
-
-            Request diblokir
-
-
-        </div>
-
-
-    </div>
-
-
-    {{-- CLIENT --}}
-
-    <div class="stat-card blue">
-
-
-        <div class="stat-top">
-
-
-            <div class="stat-icon">
-
-                ◉
-
-            </div>
-
-
-            <div>
-
-
-                <div class="stat-label">
-
-                    Active Client
-
-                </div>
-
-
-                <div class="stat-value">
-
-                    {{ number_format($uniqueClients, 0, ',', '.') }}
-
-                </div>
-
-
-            </div>
-
-
-        </div>
-
-
-        <div class="stat-foot">
-
-
-            <span class="up">
-
-                ●
-
-            </span>
-
-
-            IP client unik
-
-
-        </div>
-
-
-    </div>
-
-
-    {{-- CACHE HIT --}}
-
-    <div class="stat-card teal">
-
-
-        <div class="stat-top">
-
-
-            <div class="stat-icon">
-
-                ▤
-
-            </div>
-
-
-            <div>
-
-
-                <div class="stat-label">
-
-                    Cache HIT
-
-                </div>
-
-
-                <div class="stat-value">
-
-                    {{ number_format($hitRatio, 1, ',', '.') }}%
-
-                </div>
-
-
-            </div>
-
-
-        </div>
-
-
-        <div class="stat-foot">
-
-
-            <span class="up">
-
-                HIT {{ number_format($cacheHit, 0, ',', '.') }}
-
-            </span>
-
-
-            · MISS {{ number_format($cacheMiss, 0, ',', '.') }}
-
-
-        </div>
-
-
-    </div>
-
-
-    {{-- PROXY STATUS --}}
-
-    <div class="stat-card green">
-
-
-        <div class="stat-top">
-
-
-            <div class="stat-icon">
-
-                ✓
-
-            </div>
-
-
-            <div>
-
-
-                <div class="stat-label">
-
-                    Status Proxy
-
-                </div>
-
-
-                <div
-
-                    class="stat-value"
-
-                    style="font-size:20px">
-
-                    Menunggu Checker
-
-                </div>
-
-
-            </div>
-
-
-        </div>
-
-
-        <div class="stat-foot">
-
-            Status live akan terhubung ke Squid
-
-        </div>
-
-
-    </div>
-
-
-</div>
-
-
-{{-- ========================================================= --}}
-
-{{-- TRAFFIC + TOP DOMAIN --}}
-
-{{-- ========================================================= --}}
-
-
-<div class="grid two">
-
-
-    {{-- TRAFFIC --}}
-
-    <div class="panel">
-
-
-        <div class="panel-head">
-
-
-            <div>
-
-                <div class="panel-title">
-
-                    ▥ Traffic Jaringan
-
-                </div>
-
-            </div>
-
-
-            <select class="tiny-select">
-
-                <option>
-
-                    24 Jam Terakhir
-
-                </option>
-
-            </select>
-
-
-        </div>
-
-
-        <div class="chart">
-
-
-            <div class="chart-grid"></div>
-
-
-            <svg
-
-                id="trafficChart"
-
-                viewBox="0 0 800 210"
-
-                preserveAspectRatio="none">
-
-
-                {{-- TOTAL AREA --}}
-
-                <polygon
-
-                    id="trafficTotalArea"
-
-                    fill="#1e86fa"
-
-                    opacity=".07"></polygon>
-
-
-                {{-- TOTAL LINE --}}
-
-                <polyline
-
-                    id="trafficTotalLine"
-
-                    fill="none"
-
-                    stroke="#1e86fa"
-
-                    stroke-width="4"
-
-                    stroke-linecap="round"
-
-                    stroke-linejoin="round"></polyline>
-
-
-                {{-- ALLOWED AREA --}}
-
-                <polygon
-
-                    id="trafficAllowedArea"
-
-                    fill="#12b76a"
-
-                    opacity=".07"></polygon>
-
-
-                {{-- ALLOWED LINE --}}
-
-                <polyline
-
-                    id="trafficAllowedLine"
-
-                    fill="none"
-
-                    stroke="#12b76a"
-
-                    stroke-width="4"
-
-                    stroke-linecap="round"
-
-                    stroke-linejoin="round"></polyline>
-
-
-            </svg>
-
-
-            <div class="axis">
-
-
-                @forelse($traffic as $index => $item)
-
-
-                @if($index % 4 === 0)
-
-
-                <span>
-
-                    {{ $item['hour'] }}
+                    Monitoring Terpusat
 
                 </span>
 
+                <span class="hero-chip">
 
-                @endif
+                    <span class="chip-icon">◆</span>
 
+                    Kontrol Akses
 
-                @empty
+                </span>
 
+                <span class="hero-chip">
 
-                <span>00:00</span>
+                    <span class="chip-icon purple">▥</span>
 
+                    Data Real-time
 
-                @endforelse
-
+                </span>
 
             </div>
 
+        </div>
+
+        <div class="hero-status">
+
+            <span class="status-dot"></span>
+
+            Monitoring Aktif
 
         </div>
 
+        <div class="hero-clock">
 
-        <div class="legend">
+            <small>
 
+                {{ $now->translatedFormat('l, d F Y') }}
+
+            </small>
+
+            <b>
+
+                {{ $now->format('H:i') }}
+
+            </b>
 
             <span>
 
-                <i style="background:#1e86fa"></i>
-
-                Total Request
+                WIB
 
             </span>
 
-
-            <span>
-
-                <i style="background:#12b76a"></i>
-
-                Diizinkan
-
-            </span>
-
-
         </div>
 
+    </section>
 
-    </div>
+    {{-- ========================================================= --}}
 
+    {{-- SUMMARY CARDS --}}
 
-    {{-- TOP DOMAIN --}}
+    {{-- ========================================================= --}}
 
-    <div class="panel">
+    <div class="stats">
 
+        {{-- TOTAL REQUEST --}}
 
-        <div class="panel-head">
+        <div class="stat-card blue">
 
+            <div class="stat-top">
 
-            <div class="panel-title">
+                <div class="stat-icon">
 
-                ◎ Top Domain
-
-            </div>
-
-
-            <select class="tiny-select">
-
-                <option>
-
-                    24 Jam Terakhir
-
-                </option>
-
-            </select>
-
-
-        </div>
-
-
-        <div class="ranking">
-
-
-            @forelse($topDomains as $domain)
-
-
-            @php
-
-
-            $percentage = $totalRequest > 0
-
-            ? ($domain['total_request'] / $totalRequest) * 100
-
-            : 0;
-
-
-            $barWidth = $maxDomainRequest > 0
-
-            ? ($domain['total_request'] / $maxDomainRequest) * 100
-
-            : 0;
-
-
-            $domainInitial = strtoupper(
-
-            substr($domain['domain'], 0, 1)
-
-            );
-
-
-            @endphp
-
-
-            <div class="rank-row">
-
-
-                <div class="rank-name">
-
-
-                    <span class="brand-dot">
-
-                        {{ $domainInitial }}
-
-                    </span>
-
-
-                    <span>
-
-                        {{ $domain['domain'] }}
-
-                    </span>
-
+                    ▧
 
                 </div>
 
+                <div>
 
-                <div class="progress">
+                    <div class="stat-label">
 
+                        Total Akses
 
-                    <i
+                    </div>
 
-                        style="width:
+                    <div class="stat-value">
 
-                            {{ min($barWidth, 100) }}%"></i>
+                        {{ number_format($totalRequest, 0, ',', '.') }}
 
+                    </div>
 
                 </div>
 
-
-                <b>
-
-                    {{ number_format($percentage, 1, ',', '.') }}%
-
-                </b>
-
-
             </div>
 
+            <div class="stat-foot">
 
-            @empty
+                <span class="up">
 
+                    ●
 
-            <div
+                </span>
 
-                style="
-
-                        padding:30px;
-
-                        text-align:center;
-
-                        color:#7b8794;
-
-                    ">
-
-                Belum ada data domain.
+                24 jam terakhir
 
             </div>
-
-
-            @endforelse
-
 
         </div>
 
+        {{-- ALLOWED --}}
 
-    </div>
+        <div class="stat-card green">
 
+            <div class="stat-top">
 
-</div>
+                <div class="stat-icon">
 
+                    ✓
 
-{{-- ========================================================= --}}
+                </div>
 
-{{-- ACTIVITY + SYSTEM STATUS --}}
+                <div>
 
-{{-- ========================================================= --}}
+                    <div class="stat-label">
 
+                        Diizinkan
 
-<div
+                    </div>
 
-    class="grid two section-gap"
+                    <div class="stat-value">
 
-    style="margin-top:12px">
+                        {{ number_format($allowed, 0, ',', '.') }}
 
+                    </div>
 
-    {{-- LATEST ACTIVITIES --}}
-
-    <div class="panel">
-
-
-        <div class="panel-head">
-
-
-            <div class="panel-title">
-
-                ▧ Aktivitas Terbaru
+                </div>
 
             </div>
 
+            <div class="stat-foot">
 
-            <a
+                <span class="up">
 
-                href="{{ route('admin.access.index') }}"
+                    ●
 
-                class="link-button">
+                </span>
 
-                Lihat Semua →
+                Request diizinkan
 
-            </a>
-
+            </div>
 
         </div>
 
+        {{-- BLOCKED --}}
 
-        <div class="table-wrap">
+        <div class="stat-card red">
 
+            <div class="stat-top">
 
-            <table class="table">
+                <div class="stat-icon">
 
+                    ⊘
 
-                <thead>
+                </div>
 
+                <div>
 
-                    <tr>
+                    <div class="stat-label">
 
+                        Diblokir
 
-                        <th>
+                    </div>
 
-                            Waktu
+                    <div class="stat-value">
 
-                        </th>
+                        {{ number_format($blocked, 0, ',', '.') }}
 
+                    </div>
 
-                        <th>
+                </div>
 
-                            IP Client
+            </div>
 
-                        </th>
+            <div class="stat-foot">
 
+                <span class="down">
 
-                        <th>
+                    ●
 
-                            Domain / Destination
+                </span>
 
-                        </th>
+                Request diblokir
 
-
-                        <th>
-
-                            Protokol
-
-                        </th>
-
-
-                        <th>
-
-                            Hasil
-
-                        </th>
-
-
-                        <th>
-
-                            Squid Result
-
-                        </th>
-
-
-                    </tr>
-
-
-                </thead>
-
-
-                <tbody>
-
-
-                    @forelse($latestActivities as $log)
-
-
-                    @php
-
-
-                    $resultClass = match($log->category) {
-
-
-                    'BLOCKED'
-
-                    => 'bad',
-
-
-                    'CACHE_HIT'
-
-                    => 'ok',
-
-
-                    'CACHE_MISS'
-
-                    => 'orange',
-
-
-                    'ALLOWED'
-
-                    => 'ok',
-
-
-                    'FAILED'
-
-                    => 'bad',
-
-
-                    default
-
-                    => 'blue',
-
-                    };
-
-
-                    $resultLabel = match($log->category) {
-
-
-                    'BLOCKED'
-
-                    => 'Diblokir',
-
-
-                    'CACHE_HIT'
-
-                    => 'Cache HIT',
-
-
-                    'CACHE_MISS'
-
-                    => 'Cache MISS',
-
-
-                    'ALLOWED'
-
-                    => 'Diizinkan',
-
-
-                    'FAILED'
-
-                    => 'Gagal',
-
-
-                    default
-
-                    => 'Lainnya',
-
-                    };
-
-
-                    @endphp
-
-
-                    <tr>
-
-
-                        <td>
-
-                            {{ $log->logged_at?->format('H:i:s') ?? '-' }}
-
-                        </td>
-
-
-                        <td>
-
-                            {{ $log->client_ip }}
-
-                        </td>
-
-
-                        <td>
-
-                            {{
-
-                                $log->domain
-
-                                ?? $log->destination_ip
-
-                                ?? '-'
-
-                            }}
-
-                        </td>
-
-
-                        <td>
-
-
-                            <span class="badge blue">
-
-
-                                {{
-
-                                    $log->protocol
-
-                                    ?? $log->method
-
-                                    ?? '-'
-
-                                }}
-
-
-                            </span>
-
-
-                        </td>
-
-
-                        <td>
-
-
-                            <span
-
-                                class="badge {{ $resultClass }}">
-
-                                {{ $resultLabel }}
-
-                            </span>
-
-
-                        </td>
-
-
-                        <td>
-
-
-                            <span class="badge blue">
-
-                                {{ $log->squid_code ?? '-' }}
-
-                            </span>
-
-
-                        </td>
-
-
-                    </tr>
-
-
-                    @empty
-
-
-                    <tr>
-
-
-                        <td
-
-                            colspan="6"
-
-                            style="
-
-                                text-align:center;
-
-                                padding:32px;
-
-                            ">
-
-                            Belum ada aktivitas jaringan.
-
-                        </td>
-
-
-                    </tr>
-
-
-                    @endforelse
-
-
-                </tbody>
-
-
-            </table>
-
+            </div>
 
         </div>
 
+        {{-- CLIENT --}}
 
-    </div>
+        <div class="stat-card blue">
 
+            <div class="stat-top">
 
-    {{-- SYSTEM STATUS --}}
+                <div class="stat-icon">
 
-    <div class="panel">
+                    ◉
 
+                </div>
 
-        <div class="panel-title">
+                <div>
 
-            ⌁ Status Sistem
+                    <div class="stat-label">
+
+                        Klien Aktif
+
+                    </div>
+
+                    <div class="stat-value">
+
+                        {{ number_format($uniqueClients, 0, ',', '.') }}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="stat-foot">
+
+                <span class="up">
+
+                    ●
+
+                </span>
+
+                IP client unik
+
+            </div>
 
         </div>
 
+        {{-- CACHE HIT --}}
 
-        <div
+        <div class="stat-card teal">
 
-            class="kv-list"
+            <div class="stat-top">
 
-            style="margin-top:10px">
+                <div class="stat-icon">
 
+                    ▤
 
-            {{-- DATABASE --}}
+                </div>
 
-            <div class="kv-row">
+                <div>
 
+                    <div class="stat-label">
 
-                <span>
+                        Cache Ratio
 
+                    </div>
 
-                    <span
-
-                        class="status-dot"
-
-                        style="margin-right:7px"></span>
-
-
-                    Database Laravel
-
-
-                </span>
-
-
-                <span>
-
-
-                    <b style="color:#11945a">
-
-                        Terhubung
-
-                    </b>
-
-
-                    &nbsp;
-
-
-                    MySQL
-
-
-                </span>
-
-
-            </div>
-
-
-            {{-- SQUID --}}
-
-            <div class="kv-row">
-
-
-                <span>
-
-
-                    <span
-
-                        class="status-dot"
-
-                        style="margin-right:7px"></span>
-
-
-                    Squid Proxy
-
-
-                </span>
-
-
-                <span>
-
-
-                    <b style="color:#d08a00">
-
-                        Menunggu Checker
-
-                    </b>
-
-
-                </span>
-
-
-            </div>
-
-
-            {{-- CACHE --}}
-
-            <div class="kv-row">
-
-
-                <span>
-
-
-                    <span
-
-                        class="status-dot"
-
-                        style="margin-right:7px"></span>
-
-
-                    Cache Server
-
-
-                </span>
-
-
-                <span>
-
-
-                    <b style="color:#11945a">
-
-
-                        HIT
-
-                        {{ number_format($cacheHit, 0, ',', '.') }}
-
-
-                    </b>
-
-
-                    &nbsp;
-
-
-                    MISS
-
-                    {{ number_format($cacheMiss, 0, ',', '.') }}
-
-
-                </span>
-
-
-            </div>
-
-
-            {{-- HIT RATIO --}}
-
-            <div class="kv-row">
-
-
-                <span>
-
-
-                    <span
-
-                        class="status-dot"
-
-                        style="margin-right:7px"></span>
-
-
-                    Cache Hit Ratio
-
-
-                </span>
-
-
-                <span>
-
-
-                    <b style="color:#11945a">
-
+                    <div class="stat-value">
 
                         {{ number_format($hitRatio, 1, ',', '.') }}%
 
+                    </div>
 
-                    </b>
-
-
-                </span>
-
+                </div>
 
             </div>
 
+            <div class="stat-foot">
 
-            {{-- FAIL / OTHER --}}
+                <span class="up">
 
-            <div class="kv-row">
-
-
-                <span>
-
-
-                    <span
-
-                        class="status-dot"
-
-                        style="margin-right:7px"></span>
-
-
-                    Failed Request
-
+                    HIT {{ number_format($cacheHit, 0, ',', '.') }}
 
                 </span>
 
-
-                <span>
-
-
-                    <b>
-
-                        {{ number_format($failed, 0, ',', '.') }}
-
-                    </b>
-
-
-                </span>
-
+                · MISS {{ number_format($cacheMiss, 0, ',', '.') }}
 
             </div>
 
+        </div>
 
-            {{-- MIKROTIK --}}
+        {{-- PROXY STATUS --}}
 
-            <div class="kv-row">
+        <div class="stat-card green">
 
+            <div class="stat-top">
 
-                <span>
+                <div class="stat-icon">
 
+                    ✓
 
-                    <span
+                </div>
 
-                        class="status-dot"
+                <div>
 
-                        style="margin-right:7px"></span>
+                    <div class="stat-label">
 
+                        Proxy Monitor
 
-                    MikroTik
+                    </div>
 
+                    <div class="stat-value" style="font-size:20px">
 
-                </span>
+                        Health Check
 
+                    </div>
 
-                <span>
-
-
-                    <b style="color:#d08a00">
-
-                        Belum Terhubung API
-
-                    </b>
-
-
-                </span>
-
+                </div>
 
             </div>
 
+            <div class="stat-foot">
 
-            {{-- DATA TRANSFER --}}
+                Detail kondisi tersedia di menu Status Sistem
 
-            <div class="kv-row">
+            </div>
 
+        </div>
+
+    </div>
+
+    {{-- ========================================================= --}}
+
+    {{-- TRAFFIC + TOP DOMAIN --}}
+
+    {{-- ========================================================= --}}
+
+    <div class="grid two">
+
+        {{-- TRAFFIC --}}
+
+        <div class="panel">
+
+            <div class="panel-head">
+
+                <div>
+
+                    <div class="panel-title">
+
+                        ▥ Lalu Lintas Jaringan
+
+                    </div>
+
+                </div>
+
+                <select class="tiny-select">
+
+                    <option>
+
+                        24 Jam Terakhir
+
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="chart">
+
+                <div class="chart-grid"></div>
+
+                <svg id="trafficChart" viewBox="0 0 800 210" preserveAspectRatio="none">
+
+                    {{-- TOTAL AREA --}}
+
+                    <polygon id="trafficTotalArea" fill="#1e86fa" opacity=".07"></polygon>
+
+                    {{-- TOTAL LINE --}}
+
+                    <polyline id="trafficTotalLine" fill="none" stroke="#1e86fa" stroke-width="4" stroke-linecap="round"
+                        stroke-linejoin="round"></polyline>
+
+                    {{-- ALLOWED AREA --}}
+
+                    <polygon id="trafficDiizinkanArea" fill="#12b76a" opacity=".07"></polygon>
+
+                    {{-- ALLOWED LINE --}}
+
+                    <polyline id="trafficDiizinkanLine" fill="none" stroke="#12b76a" stroke-width="4" stroke-linecap="round"
+                        stroke-linejoin="round"></polyline>
+
+                </svg>
+
+                <div class="axis">
+
+                    @forelse($traffic as $index => $item)
+
+                        @if($index % 4 === 0)
+
+                            <span>
+
+                                {{ $item['hour'] }}
+
+                            </span>
+
+                        @endif
+
+                    @empty
+
+                        <span>00:00</span>
+
+                    @endforelse
+
+                </div>
+
+            </div>
+
+            <div class="legend">
 
                 <span>
 
+                    <i style="background:#1e86fa"></i>
 
-                    <span
-
-                        class="status-dot"
-
-                        style="margin-right:7px"></span>
-
-
-                    Total Data Log
-
+                    Total Akses
 
                 </span>
 
-
                 <span>
 
+                    <i style="background:#12b76a"></i>
 
-                    <b>
+                    Diizinkan
 
+                </span>
 
-                        @if($totalBytes >= 1073741824)
+            </div>
 
+        </div>
 
-                        {{
+        {{-- TOP DOMAIN --}}
+
+        <div class="panel">
+
+            <div class="panel-head">
+
+                <div class="panel-title">
+
+                    ◎ Top Domain
+
+                </div>
+
+                <select class="tiny-select">
+
+                    <option>
+
+                        24 Jam Terakhir
+
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="ranking">
+
+                @forelse($topDomains as $domain)
+
+                    @php
+
+                        $percentage = $totalRequest > 0
+
+                            ? ($domain['total_request'] / $totalRequest) * 100
+
+                            : 0;
+
+                        $barWidth = $maxDomainRequest > 0
+
+                            ? ($domain['total_request'] / $maxDomainRequest) * 100
+
+                            : 0;
+
+                        $domainInitial = strtoupper(
+
+                            substr($domain['domain'], 0, 1)
+
+                        );
+
+                    @endphp
+
+                    <div class="rank-row">
+
+                        <div class="rank-name">
+
+                            <span class="brand-dot">
+
+                                {{ $domainInitial }}
+
+                            </span>
+
+                            <span>
+
+                                {{ $domain['domain'] }}
+
+                            </span>
+
+                        </div>
+
+                        <div class="progress">
+
+                            <i style="width:
+
+                                    {{ min($barWidth, 100) }}%"></i>
+
+                        </div>
+
+                        <b>
+
+                            {{ number_format($percentage, 1, ',', '.') }}%
+
+                        </b>
+
+                    </div>
+
+                @empty
+
+                    <div style="
+
+                                padding:30px;
+
+                                text-align:center;
+
+                                color:#7b8794;
+
+                            ">
+
+                        Belum ada data domain.
+
+                    </div>
+
+                @endforelse
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {{-- ========================================================= --}}
+
+    {{-- ACTIVITY + SYSTEM STATUS --}}
+
+    {{-- ========================================================= --}}
+
+    <div class="grid two section-gap" style="margin-top:12px">
+
+        {{-- LATEST ACTIVITIES --}}
+
+        <div class="panel">
+
+            <div class="panel-head">
+
+                <div class="panel-title">
+
+                    ▧ Aktivitas Terbaru
+
+                </div>
+
+                <a href="{{ route('admin.access.index') }}" class="link-button">
+
+                    Lihat Semua →
+
+                </a>
+
+            </div>
+
+            <div class="table-wrap">
+
+                <table class="table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+
+                                Waktu
+
+                            </th>
+
+                            <th>
+
+                                IP Client
+
+                            </th>
+
+                            <th>
+
+                                Domain / Destination
+
+                            </th>
+
+                            <th>
+
+                                Protokol
+
+                            </th>
+
+                            <th>
+
+                                Hasil
+
+                            </th>
+
+                            <th>
+
+                                Squid Result
+
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @forelse($latestActivities as $log)
+
+                                        @php
+
+                                            $resultClass = match ($log->category) {
+
+                                                'BLOCKED'
+
+                                                => 'bad',
+
+                                                'CACHE_HIT'
+
+                                                => 'ok',
+
+                                                'CACHE_MISS'
+
+                                                => 'orange',
+
+                                                'ALLOWED'
+
+                                                => 'ok',
+
+                                                'FAILED'
+
+                                                => 'bad',
+
+                                                default
+
+                                                => 'blue',
+
+                                            };
+
+                                            $resultLabel = match ($log->category) {
+
+                                                'BLOCKED'
+
+                                                => 'Diblokir',
+
+                                                'CACHE_HIT'
+
+                                                => 'Cache Ratio',
+
+                                                'CACHE_MISS'
+
+                                                => 'Cache MISS',
+
+                                                'ALLOWED'
+
+                                                => 'Diizinkan',
+
+                                                'FAILED'
+
+                                                => 'Gagal',
+
+                                                default
+
+                                                => 'Lainnya',
+
+                                            };
+
+                                        @endphp
+
+                                        <tr>
+
+                                            <td>
+
+                                                {{ $log->logged_at?->format('H:i:s') ?? '-' }}
+
+                                            </td>
+
+                                            <td>
+
+                                                {{ $log->client_ip }}
+
+                                            </td>
+
+                                            <td>
+
+                                                {{
+
+                            $log->domain
+
+                            ?? $log->destination_ip
+
+                            ?? '-'
+
+                                                }}
+
+                                            </td>
+
+                                            <td>
+
+                                                <span class="badge blue">
+
+                                                    {{
+
+                            $log->protocol
+
+                            ?? $log->method
+
+                            ?? '-'
+
+                                                    }}
+
+                                                </span>
+
+                                            </td>
+
+                                            <td>
+
+                                                <span class="badge {{ $resultClass }}">
+
+                                                    {{ $resultLabel }}
+
+                                                </span>
+
+                                            </td>
+
+                                            <td>
+
+                                                <span class="badge blue">
+
+                                                    {{ $log->squid_code ?? '-' }}
+
+                                                </span>
+
+                                            </td>
+
+                                        </tr>
+
+                        @empty
+
+                            <tr>
+
+                                <td colspan="6" style="
+
+                                        text-align:center;
+
+                                        padding:32px;
+
+                                    ">
+
+                                    Belum ada aktivitas jaringan.
+
+                                </td>
+
+                            </tr>
+
+                        @endforelse
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        {{-- SYSTEM STATUS --}}
+
+        <div class="panel">
+
+            <div class="panel-title">
+
+                ⌁ Status Sistem
+
+            </div>
+
+            <div class="kv-list" style="margin-top:10px">
+
+                {{-- DATABASE --}}
+
+                <div class="kv-row">
+
+                    <span>
+
+                        <span class="status-dot" style="margin-right:7px"></span>
+
+                        Database Laravel
+
+                    </span>
+
+                    <span>
+
+                        <b style="color:#11945a">
+
+                            Terhubung
+
+                        </b>
+
+                        &nbsp;
+
+                        MySQL
+
+                    </span>
+
+                </div>
+
+                {{-- SQUID --}}
+
+                <div class="kv-row">
+
+                    <span>
+
+                        <span class="status-dot" style="margin-right:7px"></span>
+
+                        Squid Proxy
+
+                    </span>
+
+                    <span>
+
+                        <b style="color:#d08a00">
+
+                            Health Check
+
+                        </b>
+
+                    </span>
+
+                </div>
+
+                {{-- CACHE --}}
+
+                <div class="kv-row">
+
+                    <span>
+
+                        <span class="status-dot" style="margin-right:7px"></span>
+
+                        Cache Server
+
+                    </span>
+
+                    <span>
+
+                        <b style="color:#11945a">
+
+                            HIT
+
+                            {{ number_format($cacheHit, 0, ',', '.') }}
+
+                        </b>
+
+                        &nbsp;
+
+                        MISS
+
+                        {{ number_format($cacheMiss, 0, ',', '.') }}
+
+                    </span>
+
+                </div>
+
+                {{-- HIT RATIO --}}
+
+                <div class="kv-row">
+
+                    <span>
+
+                        <span class="status-dot" style="margin-right:7px"></span>
+
+                        Cache Hit Ratio
+
+                    </span>
+
+                    <span>
+
+                        <b style="color:#11945a">
+
+                            {{ number_format($hitRatio, 1, ',', '.') }}%
+
+                        </b>
+
+                    </span>
+
+                </div>
+
+                {{-- FAIL / OTHER --}}
+
+                <div class="kv-row">
+
+                    <span>
+
+                        <span class="status-dot" style="margin-right:7px"></span>
+
+                        Request Gagal
+
+                    </span>
+
+                    <span>
+
+                        <b>
+
+                            {{ number_format($failed, 0, ',', '.') }}
+
+                        </b>
+
+                    </span>
+
+                </div>
+
+                {{-- MIKROTIK --}}
+
+                <div class="kv-row">
+
+                    <span>
+
+                        <span class="status-dot" style="margin-right:7px"></span>
+
+                        MikroTik
+
+                    </span>
+
+                    <span>
+
+                        <b style="color:#d08a00">
+
+                            Terhubung API
+
+                        </b>
+
+                    </span>
+
+                </div>
+
+                {{-- DATA TRANSFER --}}
+
+                <div class="kv-row">
+
+                    <span>
+
+                        <span class="status-dot" style="margin-right:7px"></span>
+
+                        Volume Data Log
+
+                    </span>
+
+                    <span>
+
+                        <b>
+
+                            @if($totalBytes >= 1073741824)
+
+                                                {{
 
                                 number_format(
 
@@ -1483,15 +1096,13 @@ $trafficData = collect($traffic ?? [])
 
                                 )
 
-                            }}
+                                                    }}
 
-                        GB
+                                                GB
 
+                            @elseif($totalBytes >= 1048576)
 
-                        @elseif($totalBytes >= 1048576)
-
-
-                        {{
+                                                {{
 
                                 number_format(
 
@@ -1505,15 +1116,13 @@ $trafficData = collect($traffic ?? [])
 
                                 )
 
-                            }}
+                                                    }}
 
-                        MB
+                                                MB
 
+                            @elseif($totalBytes >= 1024)
 
-                        @elseif($totalBytes >= 1024)
-
-
-                        {{
+                                                {{
 
                                 number_format(
 
@@ -1527,132 +1136,164 @@ $trafficData = collect($traffic ?? [])
 
                                 )
 
-                            }}
+                                                    }}
 
-                        KB
+                                                KB
 
+                            @else
 
-                        @else
+                                {{ number_format($totalBytes) }}
 
+                                Bytes
 
-                        {{ number_format($totalBytes) }}
+                            @endif
 
-                        Bytes
+                        </b>
 
+                    </span>
 
-                        @endif
-
-
-                    </b>
-
-
-                </span>
-
+                </div>
 
             </div>
 
-
         </div>
-
 
     </div>
 
+    {{-- ========================================================= --}}
 
-</div>
+    {{-- TRAFFIC CHART JS --}}
 
+    {{-- ========================================================= --}}
 
-{{-- ========================================================= --}}
+    <script>
 
-{{-- TRAFFIC CHART JS --}}
+        document.addEventListener('DOMContentLoaded', function () {
 
-{{-- ========================================================= --}}
+            const traffic = @json($trafficData);
 
+            if (!traffic.length) {
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
+                return;
 
-        const traffic = @json($trafficData);
+            }
 
-        if (!traffic.length) {
-            return;
-        }
+            const width = 800;
 
-        const width = 800;
-        const height = 210;
+            const height = 210;
 
-        const topPadding = 20;
-        const bottomPadding = 20;
+            const topPadding = 20;
 
-        const usableHeight =
-            height - topPadding - bottomPadding;
+            const bottomPadding = 20;
 
-        const maxValue = Math.max(
-            1,
-            ...traffic.map(item =>
-                Math.max(
-                    Number(item.total_request || 0),
-                    Number(item.allowed || 0)
+            const usableHeight =
+
+                height - topPadding - bottomPadding;
+
+            const maxValue = Math.max(
+
+                1,
+
+                ...traffic.map(item =>
+
+                    Math.max(
+
+                        Number(item.total_request || 0),
+
+                        Number(item.allowed || 0)
+
+                    )
+
                 )
-            )
-        );
 
-        const step = traffic.length > 1 ?
-            width / (traffic.length - 1) :
-            width;
-
-        function createPoints(field) {
-            return traffic.map((item, index) => {
-
-                const x = index * step;
-                const value = Number(item[field] || 0);
-
-                const y =
-                    height -
-                    bottomPadding -
-                    ((value / maxValue) * usableHeight);
-
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-
-            }).join(' ');
-        }
-
-        const totalPoints = createPoints('total_request');
-        const allowedPoints = createPoints('allowed');
-
-        const totalLine =
-            document.getElementById('trafficTotalLine');
-
-        if (totalLine) {
-            totalLine.setAttribute('points', totalPoints);
-        }
-
-        const allowedLine =
-            document.getElementById('trafficAllowedLine');
-
-        if (allowedLine) {
-            allowedLine.setAttribute('points', allowedPoints);
-        }
-
-        const totalArea =
-            document.getElementById('trafficTotalArea');
-
-        if (totalArea) {
-            totalArea.setAttribute(
-                'points',
-                `0,${height} ${totalPoints} ${width},${height}`
             );
-        }
 
-        const allowedArea =
-            document.getElementById('trafficAllowedArea');
+            const step = traffic.length > 1 ?
 
-        if (allowedArea) {
-            allowedArea.setAttribute(
-                'points',
-                `0,${height} ${allowedPoints} ${width},${height}`
-            );
-        }
+                width / (traffic.length - 1) :
 
-    });
-</script>
+                width;
+
+            function createPoints(field) {
+
+                return traffic.map((item, index) => {
+
+                    const x = index * step;
+
+                    const value = Number(item[field] || 0);
+
+                    const y =
+
+                        height -
+
+                        bottomPadding -
+
+                        ((value / maxValue) * usableHeight);
+
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+
+                }).join(' ');
+
+            }
+
+            const totalPoints = createPoints('total_request');
+
+            const allowedPoints = createPoints('allowed');
+
+            const totalLine =
+
+                document.getElementById('trafficTotalLine');
+
+            if (totalLine) {
+
+                totalLine.setAttribute('points', totalPoints);
+
+            }
+
+            const allowedLine =
+
+                document.getElementById('trafficDiizinkanLine');
+
+            if (allowedLine) {
+
+                allowedLine.setAttribute('points', allowedPoints);
+
+            }
+
+            const totalArea =
+
+                document.getElementById('trafficTotalArea');
+
+            if (totalArea) {
+
+                totalArea.setAttribute(
+
+                    'points',
+
+                    `0,${height} ${totalPoints} ${width},${height}`
+
+                );
+
+            }
+
+            const allowedArea =
+
+                document.getElementById('trafficDiizinkanArea');
+
+            if (allowedArea) {
+
+                allowedArea.setAttribute(
+
+                    'points',
+
+                    `0,${height} ${allowedPoints} ${width},${height}`
+
+                );
+
+            }
+
+        });
+
+    </script>
+
 @endsection
